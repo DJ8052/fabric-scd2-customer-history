@@ -2,68 +2,66 @@
 
 ## Current State
 
-The current Microsoft Fabric SCD Type 2 flow is implemented and verified through `dbo.DimCustomer`. It includes `WS_SCD2_Dev`, Dataflow Gen2 `DF_SCD2_Staging`, Lakehouse `LH_SCD2_Staging`, its staging tables, Warehouse `WH_SCD2`, and stored procedure `dbo.usp_LoadDimCustomer_SCD2`. Downstream fact and reporting components remain planned.
+The solution is implemented and verified through `dbo.FactSales` in workspace `WS_SCD2_Dev`. Dataflow Gen2 `DF_SCD2_Staging` loads Lakehouse `LH_SCD2_Staging`; Warehouse `WH_SCD2` contains verified `dbo.DimCustomer`, `dbo.FactSales`, and `dbo.usp_LoadDimCustomer_SCD2` objects.
 
-## Implemented and Planned Architecture
+Excel is only the demonstration source. REST APIs, SQL Server, Azure SQL, Oracle, PostgreSQL, MySQL, Snowflake, Databricks, SAP, Salesforce, SharePoint, CSV, Parquet, cloud storage, ERP systems, and CRM systems can supply equivalent data without downstream SQL changes when the staging contract remains stable.
 
-The diagram distinguishes implemented components from proposed and future components.
+## Architecture
 
 ```mermaid
 flowchart TD
-    A["Excel Workbook<br/>Implemented Source"] --> B["Dataflow Gen2<br/>Implemented: DF_SCD2_Staging"]
-    B --> C["Lakehouse Staging<br/>Implemented: LH_SCD2_Staging"]
-    C --> D["Warehouse<br/>Implemented: WH_SCD2"]
-    D --> E["SCD Type 2 Stored Procedure<br/>Implemented / Verified"]
-    E --> F["DimCustomer<br/>Implemented / Verified"]
-    F --> G["FactSales<br/>Planned / Future Implementation"]
-    G --> H["Semantic Model<br/>Planned / Future Implementation"]
-    H --> I["Power BI<br/>Planned / Future Implementation"]
+    OperationalSource["Replaceable Source<br/>(Excel / API / Database / ERP / CRM / Files)"]
+    DF["Dataflow Gen2"]
+    LH["LH_SCD2_Staging"]
+    DIM["DimCustomer<br/>SCD Type 2"]
+    FACT["FactSales"]
+    PIPE["Fabric Pipeline<br/>(Planned)"]
+    SEM["Semantic Model<br/>(Planned)"]
+    PBI["Power BI<br/>(Planned)"]
+
+    OperationalSource --> DF
+    DF --> LH
+    LH --> DIM
+    LH --> FACT
+    DIM --> FACT
+    PIPE -. orchestrates .-> DF
+    FACT --> SEM
+    SEM --> PBI
 ```
 
-The diagram communicates the verified flow through `DimCustomer` and the intended downstream flow. `FactSales`, the Semantic Model, and Power BI have not been implemented.
+## Dimension Processing
 
-## From Source Changes to History
+`dbo.usp_LoadDimCustomer_SCD2` compares the current customer snapshot with current dimension rows. New customers receive a current version; tracked changes expire the prior version and create a replacement; unchanged customers are not duplicated. The verified scenario preserved Ryan Taylor's Houston history, made Forney current, and inserted Charlie Taylor.
 
-**Status: Implemented and Verified**
+The original versions begin at inferred date `1900-01-01` to cover historical orders while retaining their real creation audit timestamps. This is a documented demo assumption rather than authoritative history.
 
-Source snapshots are staged and compared with current Customer Dimension records by customer business key:
+## Fact Processing
 
-1. A new customer will produce an initial current dimension record.
-2. An existing customer whose tracked attributes have not changed will retain the current dimension record without creating another historical version.
-3. An existing customer whose tracked attributes have changed will cause the prior current record to become historical and a new current record to be added.
-4. Historical records will remain available so analysis can reconstruct the customer attributes that applied during an earlier period.
+`dbo.FactSales` has one row per source sales order. `OrderNumber` is its durable source identifier and `CustomerKey` identifies the dimension version valid on `OrderDate`. The day-grain lookup uses an inclusive effective start and exclusive effective end. All orders on a new version's start date map to that new version; exact same-day sequencing requires an event timestamp.
 
-The initial load contained three current rows. In the verified scenario, Ryan Taylor's city changed from Houston to Forney and Charlie Taylor was added in Miami. The procedure expired one Ryan Taylor row, inserted one replacement version, inserted Charlie Taylor, and left Devon Johnson and Joey Taylor unchanged. An unchanged rerun produced zero changes. Source-delete handling remains outside the current scope.
-
-## Why SCD Type 2 Fits Customer Attributes
-
-**Status: Implemented; City Change Verified**
-
-Attributes such as `Name` and `City` can change while the underlying customer remains the same. Overwriting those values would preserve only the latest state and remove the context needed to explain earlier business activity.
-
-SCD Type 2 is appropriate because it retains separate dimension versions when tracked attributes change. The verified city-change scenario preserved Ryan Taylor's Houston history while making Forney current. `Name` and `City` are configured as tracked attributes; an additional name-change scenario remains planned.
+The load validates source fields, source and target uniqueness, dimension integrity, and one-to-one temporal resolution before inserting. An unchanged rerun skips existing order numbers.
 
 ## Component Status
 
 | Component | Status |
 |---|---|
-| Excel Workbook source | Implemented / Available |
-| Dataflow Gen2 `DF_SCD2_Staging` | Implemented |
-| Fabric Data Pipeline | Planned / Future Implementation |
-| Lakehouse `LH_SCD2_Staging` | Implemented |
-| Lakehouse `dbo.Customers` and `dbo.Sales` | Implemented / Current snapshot loaded |
-| Warehouse `WH_SCD2` | Implemented |
-| `dbo.usp_LoadDimCustomer_SCD2` | Implemented / Verified |
-| `dbo.DimCustomer` | Implemented / Verified |
-| Initial `dbo.DimCustomer` load | Implemented / Verified with three current rows |
-| `FactSales` | Planned / Future Implementation |
-| Semantic Model | Planned / Future Implementation |
-| Power BI Report | Planned / Future Implementation |
+| Excel demonstration source | Available |
+| `DF_SCD2_Staging` | Implemented and verified |
+| `LH_SCD2_Staging.dbo.Customers` | Implemented and verified |
+| `LH_SCD2_Staging.dbo.Sales` | Implemented and verified |
+| `WH_SCD2.dbo.DimCustomer` | Implemented and verified |
+| `dbo.usp_LoadDimCustomer_SCD2` | Implemented and verified |
+| Initial temporal backfill | Implemented and verified |
+| `WH_SCD2.dbo.FactSales` | Implemented and verified |
+| Fabric Pipeline | Planned |
+| Semantic Model | Planned |
+| Power BI Report | Planned |
 
-## Planned Extensions and Limitations
+## Limitations and Next Steps
 
-- `FactSales` and its relationship to `DimCustomer` remain planned.
-- Microsoft Fabric Data Pipeline orchestration remains planned.
-- Source deletions are not handled by the current procedure.
-- `MAX(CustomerKey)` key generation requires serialized executions.
-- Additional change scenarios, Power BI, and production hardening remain planned.
+- The inferred `1900-01-01` start is not proof of historical validity.
+- Source deletions are not handled.
+- Date-only orders make same-day changes ambiguous.
+- Existing facts are treated as immutable by `OrderNumber`; the current load does not update changed attributes for an order already loaded.
+- Maximum-based surrogate-key generation requires serialized execution.
+- Pipeline orchestration, semantic modeling, Power BI, screenshots, and portfolio polish remain.

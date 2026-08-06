@@ -1,6 +1,6 @@
 /*
     Target: Microsoft Fabric Warehouse WH_SCD2
-    Purpose: Create the proposed SCD Type 2 load procedure for dbo.DimCustomer.
+    Purpose: Create the implemented SCD Type 2 load procedure for dbo.DimCustomer.
 
     Assumptions:
     - Execute this script while connected to WH_SCD2.

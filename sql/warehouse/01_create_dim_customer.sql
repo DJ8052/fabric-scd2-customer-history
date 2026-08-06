@@ -1,10 +1,10 @@
 /*
     Target: Microsoft Fabric Warehouse WH_SCD2
-    Purpose: Create the proposed SCD Type 2 Customer Dimension table.
+    Purpose: Create the implemented SCD Type 2 Customer Dimension table.
 
     Execute this script while connected to WH_SCD2. The script intentionally
-    defines no enforced primary-key or unique constraint because Fabric
-    Warehouse does not enforce those constraints.
+    defines no key constraints. Fabric Warehouse supports only NOT ENFORCED key
+    constraints, so load and validation SQL verify integrity in this demo.
 */
 
 IF NOT EXISTS
@@ -19,7 +19,7 @@ IF NOT EXISTS
 BEGIN
     CREATE TABLE dbo.DimCustomer
     (
-        -- Surrogate key; future load logic must generate and validate uniqueness.
+        -- Surrogate key; load and validation logic generate and verify uniqueness.
         CustomerKey BIGINT NOT NULL,
 
         -- Stable source-system business key used to identify a customer.
@@ -43,4 +43,3 @@ BEGIN
         UpdatedDateTime DATETIME2(6) NULL
     );
 END;
-

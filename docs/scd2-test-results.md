@@ -1,67 +1,57 @@
-# SCD Type 2 Test Results
+# SCD Type 2 and FactSales Test Results
 
 ## Test Status
 
-**Implemented and Verified**
+**Implemented and verified** in Microsoft Fabric Warehouse `WH_SCD2`.
 
-The current SCD Type 2 Customer Dimension implementation was executed and verified in Microsoft Fabric Warehouse `WH_SCD2` using `dbo.usp_LoadDimCustomer_SCD2`.
+## Dimension Initial Load and Change Processing
 
-## Initial-Load Result
+The initial load created three customer rows. The verified change snapshot changed Ryan Taylor's city from Houston to Forney, inserted Charlie Taylor in Miami, and left Devon Johnson and Joey Taylor unchanged.
 
-The initial load inserted three current rows into `dbo.DimCustomer`:
+| Metric | First change run | Unchanged rerun |
+|---|---:|---:|
+| `ExpiredRowCount` | 1 | 0 |
+| `InsertedChangedVersionCount` | 1 | 0 |
+| `InsertedNewCustomerCount` | 1 | 0 |
 
-- Devon Johnson
-- Ryan Taylor
-- Joey Taylor
+Ryan Taylor's Houston row remains historical and his Forney row is current. The unchanged rerun confirms dimension idempotency.
 
-Each customer had one current dimension version before the change scenario was applied.
+## Temporal-Coverage Update
 
-## Change-Scenario Input
+The three original dimension versions were backdated to `1900-01-01` while preserving their actual `CreatedDateTime` values. Later SCD2 versions retain their real change timestamps. The backdate is an inferred-history assumption used solely to cover facts predating warehouse implementation; it does not establish that those customer attributes were genuinely valid since 1900.
 
-The Lakehouse customer snapshot was changed as follows:
+Production alternatives include source-system inception dates, historical extracts, an Unknown dimension member, and source event timestamps.
 
-- Ryan Taylor's `City` changed from `Houston` to `Forney`.
-- Charlie Taylor was added as a new customer in `Miami`.
-- Devon Johnson and Joey Taylor remained unchanged.
+## FactSales Load Results
 
-## First Stored-Procedure Result
+| Metric | Initial load | Unchanged rerun |
+|---|---:|---:|
+| `SourceSalesRowCount` | 3 | 3 |
+| `ExistingSalesSkippedCount` | 0 | 3 |
+| `InsertedSalesCount` | 3 | 0 |
 
-The first execution of `dbo.usp_LoadDimCustomer_SCD2` returned:
+The unchanged rerun confirms FactSales idempotency at the `OrderNumber` grain.
 
-| Metric | Result |
-|---|---:|
-| `ExpiredRowCount` | 1 |
-| `InsertedChangedVersionCount` | 1 |
-| `InsertedNewCustomerCount` | 1 |
+## Integrity and Reconciliation
 
-## Final DimCustomer Expected State
+- Unmatched facts: 0
+- Duplicate `SalesKey` values: 0
+- Duplicate `OrderNumber` values: 0
+- Source Sales Amount: `900.00`
+- Warehouse SalesAmount: `900.00`
+- Difference: `0.00`
 
-The verified result matches the expected final state of five dimension rows: four current rows and one historical row.
+## Historical-Version Proof
 
-| Customer | City | Version state | Expected versions |
-|---|---|---|---:|
-| Devon Johnson | Unchanged from initial load | Current | 1 |
-| Ryan Taylor | Houston | Historical | 2 across both Ryan Taylor rows |
-| Ryan Taylor | Forney | Current | 2 across both Ryan Taylor rows |
-| Joey Taylor | Unchanged from initial load | Current | 1 |
-| Charlie Taylor | Miami | Current | 1 |
-
-The historical Ryan Taylor row has `IsCurrent = 0`; the Forney version has `IsCurrent = 1`. Devon Johnson and Joey Taylor were not updated, and Charlie Taylor was inserted as one new current row.
-
-## Idempotency Result
-
-A second execution against the unchanged scenario snapshot returned zero for all three metrics:
-
-| Metric | Result |
-|---|---:|
-| `ExpiredRowCount` | 0 |
-| `InsertedChangedVersionCount` | 0 |
-| `InsertedNewCustomerCount` | 0 |
-
-This verifies idempotency for the tested snapshot.
+Order `1002` resolved to `CustomerID = 2`, Ryan Taylor, city Houston, with `IsCurrent = 0`. This confirms that the historical sale remains attached to the historical customer version rather than Ryan Taylor's current Forney attributes.
 
 ## Known Limitations
 
-- Source deletions are not processed. A customer missing from a later source snapshot is not expired or otherwise changed by the current procedure.
-- Surrogate keys are generated from `MAX(CustomerKey)` plus deterministic `ROW_NUMBER()` values. Procedure executions must be serialized to prevent concurrent executions from selecting the same starting key.
-- Only the documented city-change and new-customer scenario has been verified. Additional attribute, null-handling, validation-error, and operational scenarios remain planned.
+- `1900-01-01` is inferred history, not authoritative source history.
+- Source deletions are not processed.
+- Same-day order and customer-change sequencing is ambiguous because `OrderDate` is date-only.
+- The verified rerun used an unchanged source snapshot; changed attributes for an existing `OrderNumber` are not updated by the current fact load.
+- `MAX(CustomerKey)` and `MAX(SalesKey)` key generation require serialized execution.
+- Pipeline orchestration and production retry handling remain future work.
+
+Excel is only the demonstration source. The downstream staging contract and dimensional SQL are source-agnostic and can accept equivalent operational data without downstream SQL changes.
