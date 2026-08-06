@@ -1,6 +1,5 @@
 # Microsoft Fabric
 
-This folder will contain versioned definitions, configuration guidance, and deployment notes for the Microsoft Fabric components used by the demo. Potential content includes workspace conventions, ingestion orchestration, storage-layer design, and processing artifacts.
+This folder is reserved for future versioned definitions, configuration guidance, and deployment notes for the Microsoft Fabric components planned for the demo. Planned content includes Lakehouse and Warehouse conventions, pipeline orchestration, storage-layer design, and SCD Type 2 Customer Dimension processing artifacts.
 
-No Fabric objects are included in the initial scaffold.
-
+No Microsoft Fabric objects currently exist in this folder.

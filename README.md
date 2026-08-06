@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This portfolio project will demonstrate how to build and communicate a Slowly Changing Dimension (SCD) Type 2 solution for customer data in Microsoft Fabric. The completed solution will preserve historical customer attributes, expose both current and prior versions, and provide a traceable path from source data through analytics.
+This portfolio project will demonstrate how to build and communicate a Slowly Changing Dimension (SCD) Type 2 Customer Dimension solution in Microsoft Fabric. The completed solution will preserve historical customer attributes, expose both current and prior versions, and provide a traceable path from source data through analytics.
 
 ## Business Problem
 
@@ -12,7 +12,7 @@ Operational customer records are updated as addresses, contact details, classifi
 - When did a customer attribute change?
 - Which customer version was active when a business event occurred?
 
-The project will model these changes so analysts can report accurately against both current and historical customer states.
+The planned Customer Dimension will model these changes so analysts can report accurately against both current and historical customer states.
 
 ## Objectives
 
@@ -21,7 +21,7 @@ The project will model these changes so analysts can report accurately against b
 - Retain prior customer versions while identifying the current version.
 - Support point-in-time analysis with effective-date metadata.
 - Document design decisions, assumptions, validation, and operating guidance.
-- Present the resulting customer history through a Power BI reporting layer.
+- Present the resulting Customer Dimension history through a Power BI reporting layer.
 
 ## Planned Architecture
 
@@ -29,14 +29,14 @@ The planned data flow is:
 
 1. Representative customer source data and controlled change scenarios.
 2. Ingestion and staging in Microsoft Fabric.
-3. Change detection and SCD Type 2 history processing.
-4. Curated customer-history storage for analytics.
+3. Change detection and SCD Type 2 Customer Dimension processing.
+4. Curated Customer Dimension history in a Warehouse for analytics.
 5. Validation, monitoring, and documented test scenarios.
 6. A Power BI semantic model and report for current-state and point-in-time analysis.
 
 Implementation details and Fabric object definitions will be added as the project develops.
 
-## Technology Stack
+## Planned Technology Stack
 
 - Microsoft Fabric
 - OneLake
@@ -62,11 +62,13 @@ Implementation details and Fabric object definitions will be added as the projec
 `-- README.md               # Project overview
 ```
 
+Detailed workbook metadata, field definitions, mapping assumptions, and ingestion plans are available in the [source data documentation](docs/source-data.md).
+
 ## Project Status
 
 **In Development**
 
-The repository currently contains the initial project structure and planning documentation. Data assets, implementation scripts, Fabric objects, validation evidence, and reporting artifacts will be added in later stages.
+The repository currently contains the project structure, the baseline source workbook, and source-data planning documentation. SQL implementation, pipelines, Microsoft Fabric Lakehouse and Warehouse objects, validation evidence, and Power BI reports are planned for later phases and do not currently exist.
 
 ## Project Phases
 

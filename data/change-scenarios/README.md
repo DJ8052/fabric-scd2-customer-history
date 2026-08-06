@@ -1,6 +1,5 @@
 # Change Scenarios
 
-This folder will contain controlled synthetic inputs that simulate customer changes across successive loads. Planned scenarios include new customers, unchanged records, single-attribute changes, multiple-attribute changes, and other cases needed to validate historical versioning behavior.
+This folder is reserved for future modified copies of the source workbook that simulate SCD Type 2 Customer Dimension changes across successive loads. Planned scenarios include customer city changes, customer name changes, new customers, unchanged records, multiple-attribute changes, and other cases needed to validate historical versioning behavior.
 
-Each scenario will be documented with its expected outcome when implementation begins.
-
+The unchanged baseline workbook belongs only in `data/source/`. Each modified scenario will be documented with its expected outcome when implementation begins.

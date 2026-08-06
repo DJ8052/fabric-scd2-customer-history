@@ -1,6 +1,5 @@
 # SQL
 
-This folder will contain future SQL scripts supporting schema setup, staging, change detection, SCD Type 2 processing, validation, and analytical queries.
+This folder is reserved for future SQL scripts supporting Warehouse schema setup, staging, change detection, SCD Type 2 Customer Dimension processing, validation, and analytical queries.
 
-No SQL implementation is included in the initial scaffold.
-
+No SQL implementation currently exists in this folder.

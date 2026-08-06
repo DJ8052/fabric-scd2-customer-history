@@ -2,7 +2,7 @@
 
 ## Scope
 
-This repository demonstrates a Microsoft Fabric SCD Type 2 customer-history solution. Keep changes aligned with that portfolio objective and avoid unrelated tooling or infrastructure.
+This repository demonstrates a Microsoft Fabric SCD Type 2 Customer Dimension solution. Keep changes aligned with that portfolio objective and avoid unrelated tooling or infrastructure.
 
 ## Working Agreements
 
@@ -18,4 +18,3 @@ This repository demonstrates a Microsoft Fabric SCD Type 2 customer-history solu
 ## Validation
 
 Changes should include proportionate validation. Data-processing work should cover initial loads, unchanged records, attribute changes, new customers, and repeat processing where applicable.
-
