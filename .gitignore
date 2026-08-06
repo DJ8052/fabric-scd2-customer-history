@@ -1,0 +1,31 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor and IDE settings
+.vscode/
+.idea/
+*.code-workspace
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+~$*
+
+# Generated outputs
+dist/
+build/
+out/
+
+# Power BI local and temporary files
+*.pbit.cache
+*.pbix.tmp
+
