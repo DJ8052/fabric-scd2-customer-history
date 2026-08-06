@@ -69,7 +69,7 @@ No nulls, duplicate candidate keys, or unmatched customer references were observ
 
 ## Implemented Staging Tables
 
-Dataflow Gen2 `DF_SCD2_Staging` has loaded the current source snapshot into the `dbo` schema of Lakehouse `LH_SCD2_Staging`:
+Dataflow Gen2 `DF_SCD2_Staging_Live` loads the current source snapshot into the `dbo` schema of Lakehouse `LH_SCD2_Staging`:
 
 | Source worksheet | Implemented Lakehouse table | Purpose |
 |---|---|---|
@@ -97,7 +97,21 @@ A production design could instead use reliable source-system inception dates, hi
 
 ## Ingestion Status and Future Process
 
-The baseline workbook was loaded through `DF_SCD2_Staging` into `LH_SCD2_Staging.dbo.Customers` and `LH_SCD2_Staging.dbo.Sales`. The staged customer snapshot was processed successfully into `WH_SCD2.dbo.DimCustomer`, and the three staged orders were loaded into `WH_SCD2.dbo.FactSales` with a reconciled total of `900.00`.
+The baseline workbook was loaded through Dataflow Gen2 into `LH_SCD2_Staging.dbo.Customers` and `LH_SCD2_Staging.dbo.Sales`. Subsequent changes are now processed through `PL_SCD2_EndToEnd` and have produced customer history and FactSales rows through `OrderNumber = 1012`.
+
+## Live Workbook Connection
+
+`DF_SCD2_Staging_Live` now uses the correct live OneDrive/SharePoint workbook path. An earlier refresh issue was traced to a different OneDrive file path than the workbook being edited. The corrected connection supports this workflow:
+
+1. Edit and save the workbook.
+2. Run `PL_SCD2_EndToEnd`.
+3. Refresh and verify Lakehouse staging, customer history, and sales facts.
+
+Documentation intentionally omits private tenant, account, and full SharePoint identifiers. A safe path pattern is:
+
+```text
+https://<tenant>-my.sharepoint.com/personal/<user>/Documents/SCD2_Stored_Procedure_Sample_Data.xlsx
+```
 
 ## Verified Change Snapshot
 
@@ -110,5 +124,5 @@ See the [SCD Type 2 test results](scd2-test-results.md) for the verified dimensi
 1. Confirm file, worksheet, column, row-count, key, and data-type validation in the Dataflow Gen2 process.
 2. Define ingestion audit metadata and invalid-row handling.
 3. Store additional modified workbook snapshots under `data/change-scenarios/` for repeatable change tests.
-4. Add orchestration and operational monitoring after the manual workflow is finalized.
+4. Add automated validation, operational monitoring, alerting, and optional scheduling to the verified pipeline.
 5. Replace inferred temporal coverage with authoritative inception/history data or an Unknown-member policy for production use.

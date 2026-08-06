@@ -12,7 +12,7 @@ Operational systems commonly overwrite customer attributes. That destroys the hi
 
 ## Architecture
 
-Dataflow Gen2 `DF_SCD2_Staging` loads the replaceable source into Lakehouse `LH_SCD2_Staging`. Warehouse `WH_SCD2` contains `dbo.DimCustomer`, `dbo.FactSales`, and `dbo.usp_LoadDimCustomer_SCD2`. Pipeline orchestration and reporting remain future phases.
+Pipeline `PL_SCD2_EndToEnd` orchestrates Dataflow Gen2 `DF_SCD2_Staging_Live`, refreshes Lakehouse `LH_SCD2_Staging`, then calls `dbo.usp_LoadDimCustomer_SCD2` and `dbo.usp_LoadFactSales` in Warehouse `WH_SCD2`. Semantic modeling and reporting remain future phases.
 
 ## Technology Stack
 
@@ -44,12 +44,20 @@ Dataflow Gen2 `DF_SCD2_Staging` loads the replaceable source into Lakehouse `LH_
 ## End-to-End Workflow
 
 1. A replaceable operational source supplies customer and sales records.
-2. `DF_SCD2_Staging` loads `dbo.Customers` and `dbo.Sales` into `LH_SCD2_Staging`.
-3. The initial customer load creates the first known dimension versions.
-4. `dbo.usp_LoadDimCustomer_SCD2` expires changed versions and inserts changed or new current versions.
-5. The first known demo versions are backdated to inferred date `1900-01-01` so older facts have temporal coverage while their actual `CreatedDateTime` values remain unchanged.
-6. The FactSales load resolves each order to exactly one customer version using inclusive-start and exclusive-end day-grain boundaries.
+2. The user runs `PL_SCD2_EndToEnd` once after saving source changes.
+3. `Refresh_Staging_Dataflow` runs `DF_SCD2_Staging_Live`, loading `dbo.Customers` and `dbo.Sales` into `LH_SCD2_Staging`.
+4. After the refresh succeeds, `Load_DimCustomer_SCD2` calls `dbo.usp_LoadDimCustomer_SCD2` in `WH_SCD2`.
+5. After the dimension succeeds, `Load_FactSales` calls `dbo.usp_LoadFactSales` in `WH_SCD2`.
+6. Fact loading resolves each order to exactly one customer version using inclusive-start and exclusive-end day-grain boundaries.
 7. Read-only SQL verifies keys, mappings, totals, temporal attribution, reconciliation, and rerun behavior.
+
+## Live Demo Workflow
+
+1. Edit and save the demonstration workbook.
+2. Run `PL_SCD2_EndToEnd`.
+3. Verify the resulting customer history.
+4. Verify new `dbo.FactSales` rows.
+5. Verify historical customer attribution.
 
 ## Engineering Decisions
 
@@ -65,25 +73,26 @@ Dataflow Gen2 `DF_SCD2_Staging` loads the replaceable source into Lakehouse `LH_
 
 | Component | Status |
 |---|---|
-| Dataflow Gen2 `DF_SCD2_Staging` | Implemented and verified |
+| Dataflow Gen2 `DF_SCD2_Staging_Live` | Implemented and verified |
 | Lakehouse `LH_SCD2_Staging` | Implemented and verified |
 | Lakehouse `dbo.Customers`, `dbo.Sales` | Implemented and verified |
 | Warehouse `WH_SCD2` | Implemented and verified |
 | `dbo.DimCustomer` | Implemented and verified |
 | `dbo.usp_LoadDimCustomer_SCD2` | Implemented and verified |
+| `dbo.usp_LoadFactSales` | Implemented and verified |
 | Initial temporal backfill | Implemented and verified |
 | `dbo.FactSales` | Implemented and verified |
 | Historical customer resolution | Implemented and verified |
 | Dimension and fact rerun behavior | Implemented and verified |
-| Fabric Pipeline | Planned |
+| Pipeline `PL_SCD2_EndToEnd` | Implemented and verified |
 | Semantic Model | Planned |
 | Power BI Report | Planned |
 
 ## Validation Results
 
-The SCD2 scenario preserved Ryan Taylor's historical Houston version, created his current Forney version, and inserted Charlie Taylor. An unchanged dimension rerun returned zero expired, changed-version, and new-customer rows.
+The original SCD2 scenario preserved Ryan Taylor's historical Houston version, created his Forney version, and inserted Charlie Taylor. Later pipeline runs added Ryan Taylor's Plano version, changed Joey Taylor from Los Angeles to Annapolis, and added Jammie Chappell, Taylor Jones, and Marie Peoples. `CustomerID` remained stable while each historical version received its own `CustomerKey`.
 
-The initial FactSales load returned three source rows, zero skipped rows, and three inserts. Its unchanged rerun returned three source rows, three skipped rows, and zero inserts. Validation found no unmatched facts, duplicate `SalesKey` values, or duplicate `OrderNumber` values. Source and Warehouse sales both totaled `900.00`, with a `0.00` difference. Order `1002` remained assigned to Ryan Taylor's historical Houston version (`CustomerID = 2`, `IsCurrent = 0`).
+The initial FactSales load and unchanged rerun verified idempotency. Subsequent pipeline execution loaded sales through `OrderNumber = 1012`. All three pipeline activities succeeded, and order `1002` remained assigned to Ryan Taylor's historical Houston version (`CustomerID = 2`, `IsCurrent = 0`).
 
 See [SCD Type 2 and FactSales test results](docs/scd2-test-results.md) for recorded evidence.
 
@@ -91,7 +100,7 @@ See [SCD Type 2 and FactSales test results](docs/scd2-test-results.md) for recor
 
 - Preserves customer history instead of overwriting it.
 - Maintains historically correct sales attribution at the available day grain.
-- Supports repeatable, idempotent manual ETL execution.
+- Supports repeatable, dependency-controlled pipeline execution.
 - Separates replaceable ingestion from stable dimensional processing.
 - Provides auditable validation suitable for engineering review.
 
@@ -102,13 +111,17 @@ See [SCD Type 2 and FactSales test results](docs/scd2-test-results.md) for recor
 - Same-day customer changes and orders are ambiguous because `OrderDate` has no time component.
 - Existing orders are treated as immutable by `OrderNumber`; changed source attributes for an already-loaded order are not updated.
 - `MAX(...) + ROW_NUMBER()` surrogate-key generation assumes serialized execution.
-- Fabric Pipeline orchestration, automated retry handling, and operational monitoring are not implemented.
+- Automated post-load validation is not yet a pipeline activity.
+- Monitoring, alerting, scheduling, and operational audit storage remain future work.
 - The small synthetic dataset does not demonstrate production scale or performance.
 
 ## Future Enhancements
 
-- Build the Fabric Pipeline with dependencies, retry handling, and monitoring.
-- Create the Semantic Model and Power BI report.
+- Add an automated post-load validation activity.
+- Add monitoring and alerting.
+- Add an optional schedule or event-based trigger.
+- Build the Semantic Model.
+- Build the Power BI report.
 - Capture source event timestamps for precise same-day ordering.
 - Define source-deletion and changed-order policies, including an Unknown-member strategy.
 - Add broader data-quality, failure, null-transition, and scale tests.
@@ -119,27 +132,30 @@ See [SCD Type 2 and FactSales test results](docs/scd2-test-results.md) for recor
 ```mermaid
 flowchart TD
     OperationalSource["Replaceable Source<br/>(Excel / API / Database / ERP / CRM / Files)"]
-    DF["Dataflow Gen2<br/>DF_SCD2_Staging"]
+    PIPE["Pipeline<br/>PL_SCD2_EndToEnd"]
+    DF["Refresh_Staging_Dataflow<br/>DF_SCD2_Staging_Live"]
     LH["Lakehouse<br/>LH_SCD2_Staging"]
-    DIM["Warehouse DimCustomer<br/>SCD Type 2"]
-    FACT["Warehouse FactSales"]
-    PIPE["Fabric Pipeline<br/>(Planned)"]
+    DIM["Load_DimCustomer_SCD2<br/>dbo.usp_LoadDimCustomer_SCD2"]
+    FACT["Load_FactSales<br/>dbo.usp_LoadFactSales"]
+    WH["Warehouse<br/>WH_SCD2"]
     SEM["Semantic Model<br/>(Planned)"]
     PBI["Power BI<br/>(Planned)"]
 
+    PIPE -. orchestrates .-> DF
+    PIPE -. orchestrates .-> DIM
+    PIPE -. orchestrates .-> FACT
     OperationalSource --> DF
     DF --> LH
     LH --> DIM
-    LH --> FACT
     DIM --> FACT
-    PIPE -. orchestrates .-> DF
-    FACT --> SEM
+    FACT --> WH
+    WH --> SEM
     SEM --> PBI
 ```
 
 ## Git Workflow
 
-FactSales work is maintained on branch `feature/fact-sales`. SQL and its validation evidence should be committed together so implementation decisions and verified outcomes remain traceable. This review does not commit, push, or merge changes.
+FactSales was developed on `feature/fact-sales`, merged into `main`, and its feature branch was deleted. The current pipeline documentation work is on `feature/fabric-pipeline`; this branch has not yet been merged.
 
 ## Lessons Learned
 
@@ -151,4 +167,4 @@ FactSales work is maintained on branch `feature/fact-sales`. SQL and its validat
 
 ## Resume Here
 
-The Dataflow, Lakehouse, Warehouse dimension, SCD2 procedure, temporal backfill, FactSales load, and validation phases are complete and verified for the documented demo scenarios. Resume with Fabric Pipeline orchestration, followed by the Semantic Model, Power BI report, portfolio screenshots, and final portfolio polish. See [project status](docs/project-status.md) for the concise handoff.
+The Dataflow, Lakehouse, Warehouse dimension, SCD2 procedure, FactSales procedure, and end-to-end pipeline are implemented and verified. Resume with automated post-load validation, monitoring, optional scheduling, the Semantic Model, Power BI report, screenshots, and portfolio polish. See [project status](docs/project-status.md) for the concise handoff.

@@ -55,3 +55,15 @@ Order `1002` resolved to `CustomerID = 2`, Ryan Taylor, city Houston, with `IsCu
 - Pipeline orchestration and production retry handling remain future work.
 
 Excel is only the demonstration source. The downstream staging contract and dimensional SQL are source-agnostic and can accept equivalent operational data without downstream SQL changes.
+
+## Pipeline Orchestration Validation
+
+Pipeline `PL_SCD2_EndToEnd` was executed successfully with all three activities completing in order:
+
+1. `Refresh_Staging_Dataflow`
+2. `Load_DimCustomer_SCD2`
+3. `Load_FactSales`
+
+Additional customer history and FactSales rows were created automatically after the source workbook was updated and saved. No manual execution of the dimension or fact procedures was required after the source update.
+
+The pipeline added customer history including Ryan Taylor's Plano version and Joey Taylor's Annapolis version, added customers including Jammie Chappell, Taylor Jones, and Marie Peoples, and loaded sales through `OrderNumber = 1012`. `CustomerID` remained the stable business key while new historical versions received new `CustomerKey` values.
