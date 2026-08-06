@@ -2,39 +2,39 @@
 
 ## Current Milestone
 
-The Customer Dimension and FactSales implementation is complete and verified in Microsoft Fabric workspace `WS_SCD2_Dev`.
+End-to-end orchestration is implemented and verified in Microsoft Fabric workspace `WS_SCD2_Dev` through pipeline `PL_SCD2_EndToEnd`.
 
 ## Completed
 
-- Dataflow Gen2 `DF_SCD2_Staging`
+- Dataflow Gen2 `DF_SCD2_Staging_Live`
 - Lakehouse `LH_SCD2_Staging`
 - Warehouse `WH_SCD2`
 - SCD Type 2 Customer Dimension
 - FactSales table and load
-- Historical customer resolution
-- Dimension and fact validation
-- Idempotent ETL reruns
-- GitHub repository workflow
+- `dbo.usp_LoadDimCustomer_SCD2`
+- `dbo.usp_LoadFactSales`
+- Fabric pipeline creation
+- Dataflow activity `Refresh_Staging_Dataflow`
+- Dimension activity `Load_DimCustomer_SCD2`
+- Fact activity `Load_FactSales`
+- End-to-end pipeline execution
+- Historical customer resolution and idempotent loading
 
-## Verified Results
+## Verified Pipeline Result
 
-- Ryan Taylor: Houston history preserved and Forney made current.
-- Charlie Taylor: inserted as a new customer.
-- Dimension rerun: zero expired, changed-version, and new-customer rows.
-- Initial FactSales load: 3 source, 0 skipped, 3 inserted.
-- FactSales rerun: 3 source, 3 skipped, 0 inserted.
-- No unmatched facts or duplicate fact keys.
-- Source and Warehouse sales totals: `900.00`; difference: `0.00`.
-- Order `1002` resolves to Ryan Taylor's historical Houston version.
+All three activities completed successfully in dependency order. Source changes flowed through the live Dataflow into Lakehouse staging, customer changes were processed automatically, and new sales were loaded without manual procedure execution.
 
-## Remaining
+The verified Warehouse now includes customer history through Ryan Taylor's Plano version and Joey Taylor's Annapolis version, new customers including Jammie Chappell, Taylor Jones, and Marie Peoples, and sales through `OrderNumber = 1012`.
 
-- Fabric Pipeline
+## Next Phase
+
+- Automated post-load validation activity
 - Semantic Model
 - Power BI Report
-- Portfolio screenshots
-- Portfolio polish
+- Monitoring and alerting
+- Optional scheduling or event-based trigger
+- Portfolio screenshots and final polish
 
 ## Limitations
 
-The `1900-01-01` start is inferred for demo coverage, source deletions are not handled, and date-only orders cannot resolve same-day event sequence. Existing facts are treated as immutable by `OrderNumber`, and maximum-based key generation requires serialized execution.
+The `1900-01-01` start remains inferred, source deletions are not handled, and date-only orders cannot resolve same-day sequence. Existing facts are immutable by `OrderNumber`, maximum-based key generation requires serialized execution, and operational audit storage is not yet implemented.

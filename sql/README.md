@@ -16,13 +16,17 @@ Excel is only the demonstration source. These scripts depend on the Lakehouse st
 | [`05a_backfill_initial_dimension_start_dates.sql`](warehouse/05a_backfill_initial_dimension_start_dates.sql) | Backdates only qualifying original dimension rows to the inferred-history start. | Implemented and verified |
 | [`06_load_fact_sales.sql`](warehouse/06_load_fact_sales.sql) | Validates and idempotently loads sales with historical day-grain `CustomerKey` resolution. | Implemented and verified |
 | [`07_validate_fact_sales.sql`](warehouse/07_validate_fact_sales.sql) | Validates fact integrity, temporal assignment, reconciliation, totals, and historical proof. | Implemented and verified |
+| [`08_create_load_fact_sales_procedure.sql`](warehouse/08_create_load_fact_sales_procedure.sql) | Creates parameterless `dbo.usp_LoadFactSales`, called by `PL_SCD2_EndToEnd`, using the verified standalone FactSales load logic. | Implemented and verified |
+| [`09_demo_queries.sql`](warehouse/09_demo_queries.sql) | Provides read-only portfolio queries for customer history, facts, integrity, attribution, and summaries. | Read-only demonstration |
 
 ## Execution Notes
 
-- Recommended script order: `01`, `02`, `03`, `05`, `05a`, `04`, `06`, then `07`. Script `05a` safely updates zero rows after a fresh `02` load and exists primarily for the previously loaded demo environment. Execute the SCD2 procedure as required before loading facts, then use `04` to validate the resulting dimension state.
+- Recommended script order: `01`, `02`, `03`, `05`, `05a`, `04`, `06`, `07`, `08`, then read-only demo script `09`. Script `05a` safely updates zero rows after a fresh `02` load and exists primarily for the previously loaded demo environment. Execute the SCD2 procedure as required before loading facts, then use `04` to validate the resulting dimension state.
 - Submit `05a` and `06` as complete batches so `BEGIN TRANSACTION`, `COMMIT`, and `ROLLBACK` execute in the same Fabric query-editor session.
 - The initial `1900-01-01` boundary is inferred for demonstration coverage and is not authoritative history.
 - Same-day event order remains ambiguous while source `OrderDate` is date-only.
 - Existing facts are treated as immutable by `OrderNumber`; the fact load does not update an already-loaded order.
 - `MAX(CustomerKey)` and `MAX(SalesKey)` plus `ROW_NUMBER()` require serialized executions.
-- Source deletions and automated pipeline orchestration are not implemented.
+- `PL_SCD2_EndToEnd` calls `dbo.usp_LoadDimCustomer_SCD2` and then `dbo.usp_LoadFactSales` after `DF_SCD2_Staging_Live` succeeds.
+- Standalone load and validation scripts remain useful for focused testing, troubleshooting, and recovery.
+- Source deletions and automated post-load validation are not implemented.
