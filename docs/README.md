@@ -5,6 +5,7 @@ This folder contains the project architecture, source-data reference, environmen
 - [Source data](source-data.md)
 - [Microsoft Fabric environment](fabric-environment.md)
 - [Solution architecture](solution-architecture.md)
+- [Project status](project-status.md)
 - [SCD Type 2 test results](scd2-test-results.md)
 
 Documentation will continue to be updated as the remaining planned components are implemented.
