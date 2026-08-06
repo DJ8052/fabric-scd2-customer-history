@@ -13,7 +13,7 @@ The supplied source is a Microsoft Excel workbook. The originating operational s
 
 ## Business Purpose
 
-The workbook provides a small customer and sales dataset for the planned Microsoft Fabric SCD Type 2 Customer Dimension implementation. `Sheet2` contains customer attributes that can be varied in future source snapshots, while `Sales` provides transactions that reference those customers.
+The workbook provides the baseline customer and sales dataset for the implemented Microsoft Fabric SCD Type 2 Customer Dimension. `Sheet2` contains customer attributes used to create change snapshots, while `Sales` provides transactions that reference those customers.
 
 ## Expected Row Counts
 
@@ -68,35 +68,41 @@ No nulls, duplicate candidate keys, or unmatched customer references were observ
 - The customer worksheet contains no source change timestamp, effective date, or deletion indicator.
 - The workbook contains only three rows per worksheet, so broader null, format, duplicate, and referential-integrity cases are not represented.
 
-## Planned Staging Tables
+## Implemented Staging Tables
 
-The following logical staging tables are planned; they are documentation only and have not been created:
+Dataflow Gen2 `DF_SCD2_Staging` has loaded the current source snapshot into the `dbo` schema of Lakehouse `LH_SCD2_Staging`:
 
-| Worksheet | Planned staging table | Purpose |
+| Source worksheet | Implemented Lakehouse table | Purpose |
 |---|---|---|
-| `Sales` | `stg_Sales` | Preserve and validate incoming sales records before downstream processing. |
-| `Sheet2` | `stg_Customer` | Preserve and validate the incoming customer snapshot before SCD Type 2 Customer Dimension comparison. |
+| `Sales` | `dbo.Sales` | Holds the current staged sales snapshot for downstream processing. |
+| `Sheet2` | `dbo.Customers` | Holds the current staged customer snapshot for future SCD Type 2 Customer Dimension comparison. |
 
-## Mapping Assumptions
+## Implemented Mappings and Remaining Assumptions
 
-These assumptions are proposed for the future ingestion design and must be validated during implementation:
+The current customer mapping has been exercised by the implemented ingestion and SCD Type 2 flow. Sales remains staged for future `FactSales` work.
 
-- `Sheet2` represents the customer source snapshot because its columns describe customer identifiers and attributes.
-- `Sheet2.CustomerID` maps to the staged customer business key without transformation.
-- `Sales.Customer` maps to the same customer identifier represented by `Sheet2.CustomerID`.
-- `Order Number`, `Customer`, and `CustomerID` will be ingested as whole-number identifiers.
-- `Sales Amount` will be ingested as a fixed-precision numeric value; precision, scale, and currency remain to be defined.
-- `Order Date` will be ingested as a date without a time component.
-- `Name` and `City` will initially preserve source text. Any trimming, casing, or standardization rules must be documented before use in change detection.
-- Row counts and key checks will be evaluated per worksheet, with the current file serving as the baseline snapshot.
+- `Sheet2` is used as the customer source snapshot.
+- `Sheet2.CustomerID` maps to the customer business key.
+- `Name` maps to `dbo.DimCustomer.CustomerName`, and `City` maps to `dbo.DimCustomer.City`.
+- The verified flow preserved source text for `Name` and `City`; no additional standardization rule is documented.
+- `Sales.Customer` is expected to map to the same customer identifier represented by `Sheet2.CustomerID`; this remains relevant to planned `FactSales` work.
+- `Order Number`, `Customer`, and `CustomerID` are represented as whole-number identifiers in the supplied workbook.
+- Precision, scale, and currency for `Sales Amount` remain to be defined before `FactSales` implementation.
+- `Order Date` is represented as a date without a time component in the source documentation.
 
-## Future Ingestion Process
+## Ingestion Status and Future Process
 
-1. Place the unchanged baseline workbook in `data/source/` using the documented file name.
-2. Validate the file name, required worksheets, required columns, and readable workbook format.
-3. Load each worksheet into its corresponding staging table without altering the source workbook.
-4. Capture operational metadata such as source file name and ingestion timestamp outside the source columns.
-5. Validate row counts, required values, candidate-key uniqueness, data types, and customer referential integrity.
-6. Quarantine or reject invalid rows according to rules established during implementation.
-7. Use the staged customer snapshot as input to the future SCD Type 2 process.
-8. Store intentionally modified workbook snapshots under `data/change-scenarios/` for repeatable change tests.
+The baseline workbook was loaded through `DF_SCD2_Staging` into `LH_SCD2_Staging.dbo.Customers` and `LH_SCD2_Staging.dbo.Sales`. The staged customer snapshot was then processed successfully into `WH_SCD2.dbo.DimCustomer`.
+
+## Verified Change Snapshot
+
+The verified change snapshot updated Ryan Taylor's city from `Houston` to `Forney` and added Charlie Taylor in `Miami`. Devon Johnson and Joey Taylor remained unchanged. The stored procedure produced one expired row, one changed-version insert, and one new-customer insert. An unchanged rerun produced zero changes.
+
+See the [SCD Type 2 test results](scd2-test-results.md) for the verified dimension state and limitations.
+
+## Future Ingestion Work
+
+1. Confirm file, worksheet, column, row-count, key, and data-type validation in the Dataflow Gen2 process.
+2. Define ingestion audit metadata and invalid-row handling.
+3. Store additional modified workbook snapshots under `data/change-scenarios/` for repeatable change tests.
+4. Add orchestration and operational monitoring after the manual workflow is finalized.
